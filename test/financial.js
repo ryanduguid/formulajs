@@ -533,6 +533,192 @@ describe('Financial', () => {
     expect(financial.MIRR([-75000, 12000, 15000, 18000, 21000, 24000], 'invalid', 0.12)).to.equal(error.value)
   })
 
+  describe('MIRR cash-flow timing', () => {
+    const cases = [
+      ['alternating signs', [-100, 50, -50, 121], 0.1, 0.1, 0.08698102563625021],
+      ['consecutive outflows', [-100, -50, 50, 121], 0.1, 0.1, 0.06560223676661071],
+      ['an initial inflow', [50, -100, 121], 0.1, 0.1, 0.4129755836531642],
+      ['a zero income gap', [-100, 50, 0, 121], 0.1, 0.1, 0.21981005732342698],
+      ['a leading zero', [0, -100, 121], 0.1, 0.1, 0.1536897329871667],
+      ['a trailing zero', [-100, 121, 0], 0.1, 0.1, 0.1536897329871667],
+      ['different rates', [-100, 50, -60, 70], 0.1, 0.12, -0.03909366594356469],
+      ['zero rates', [-100, 50, -50, 121], 0, 0, 0.044643926822318686],
+      ['the existing example', [-75000, 12000, 15000, 18000, 21000, 24000], 0.1, 0.12, 0.07971710360838027],
+      ['the five-year example', [-120000, 39000, 30000, 21000, 37000, 46000], 0.1, 0.12, 0.12609413036590514],
+      ['the three-year example', [-120000, 39000, 30000, 21000], 0.1, 0.12, -0.04804465524998082],
+      ['negative rates above -1', [-100, 50, -50, 121], -0.1, -0.2, -0.0183235226485747],
+      ['two endpoint flows', [-100, 110], 0.1, 0.2, 0.1]
+    ]
+
+    for (const [name, values, financeRate, reinvestRate, expected] of cases) {
+      it(`preserves periods for ${name}`, () => {
+        expect(financial.MIRR(values, financeRate, reinvestRate)).to.approximately(expected, 1e-12)
+      })
+    }
+
+    for (const [name, length, financeRate, reinvestRate] of [
+      ['discount-factor underflow', 1076, -0.5, 0],
+      ['reinvestment-factor overflow', 1025, 0, 1],
+      ['reinvestment-factor underflow', 1076, 0, -0.5]
+    ]) {
+      it(`does not value zero flows through ${name}`, () => {
+        const values = Array(length).fill(0)
+        values[0] = -1
+        values[length - 1] = 1
+
+        expect(financial.MIRR(values, financeRate, reinvestRate)).to.equal(0)
+      })
+    }
+
+    it('accumulates subnormal receipts before compounding them', () => {
+      const minimum = Number.MIN_VALUE
+
+      expect(financial.MIRR([-minimum, 2 * minimum, minimum, 0], 0, -0.5)).to.equal(0)
+    })
+
+    it('values subnormal receipts without rounding away their periods', () => {
+      const minimum = Number.MIN_VALUE
+      const expected = -0.09143970358393017
+
+      expect(financial.MIRR([-minimum, minimum, minimum, 0], 0, -0.5)).to.approximately(expected, 1e-12)
+      expect(financial.MIRR([-1, 1, 1, 0], 0, -0.5)).to.approximately(expected, 1e-12)
+    })
+
+    it('discounts a nonzero late payment when its discount factor underflows', () => {
+      const values = Array(1077).fill(0)
+      values[0] = -1
+      values[1075] = -Number.MIN_VALUE
+      values[1076] = 1
+
+      expect(financial.MIRR(values, -0.5, 0)).to.approximately(-0.0010204940795625335, 1e-12)
+    })
+
+    it('retains a payment when its discount factor overflows', () => {
+      const values = Array(1026).fill(0)
+      values[0] = -1
+      values[1024] = -(2 ** 1023)
+      values[1025] = 1
+
+      expect(financial.MIRR(values, 1, 0)).to.approximately(-0.00039549748546984274, 1e-12)
+    })
+
+    it('does not treat rounded subnormal totals as an exact zero return', () => {
+      const minimum = Number.MIN_VALUE
+
+      expect(financial.MIRR([-minimum, minimum, 0], 0, -0.25)).to.approximately(-0.13397459621556135, 1e-12)
+    })
+
+    it('retains a small positive return for subnormal cash flows', () => {
+      const minimum = Number.MIN_VALUE
+      const rate = 2 ** -40
+      const expected = rate / (Math.sqrt(1 + rate) + 1)
+      const actual = financial.MIRR([-minimum, minimum, 0], 0, rate)
+
+      expect(actual).to.be.greaterThan(0)
+      expect(actual).to.approximately(expected, expected * 1e-12)
+    })
+
+    it('retains a small positive return after a tiny initial receipt', () => {
+      const difference = 2 ** -44
+      const expected = difference / (Math.sqrt(1 + difference) + 1)
+      const actual = financial.MIRR([Number.MIN_VALUE, -1, 1 + difference], 0, 0)
+
+      expect(actual).to.be.greaterThan(0)
+      expect(actual).to.approximately(expected, expected * 1e-12)
+    })
+
+    it('values cash flows when one or both signed totals overflow', () => {
+      const large = 2 ** 1023
+
+      expect(financial.MIRR([-large, large, large], 0, 0)).to.approximately(0.41421356237309503, 1e-12)
+      expect(financial.MIRR([-large, -large, large, large], 0, 0)).to.equal(0)
+    })
+
+    it('returns a finite rate when the final value ratio overflows', () => {
+      const expected = 6.355805030768232e307
+      const actual = financial.MIRR([-(2 ** -1022), 0, 2 ** 1023], 0, 0)
+
+      expect(Number.isFinite(actual)).to.equal(true)
+      expect(actual).to.approximately(expected, expected * 1e-12)
+    })
+
+    it('values a small return ratio without underflowing it to zero', () => {
+      const values = Array(2046).fill(0)
+      values[0] = -(2 ** 1023)
+      values[2045] = 2 ** -1022
+
+      expect(financial.MIRR(values, 0, 0)).to.approximately(-0.5, 1e-12)
+    })
+
+    it('retains a tiny late payment alongside a large receipt', () => {
+      const values = Array(1077).fill(0)
+      values[0] = -1
+      values[1075] = -Number.MIN_VALUE
+      values[1076] = 2 ** 1023
+
+      expect(financial.MIRR(values, -0.5, 0)).to.approximately(0.9308960261945843, 1e-12)
+    })
+
+    it('recovers a receipt balance that overflows before a later period', () => {
+      const large = 2 ** 1023
+
+      expect(financial.MIRR([-large, Number.MAX_VALUE, Number.MAX_VALUE, 0], 0, -0.5)).to.approximately(
+        0.14471424255333182,
+        1e-12
+      )
+    })
+
+    it('parses nested arrays and numeric strings before valuing their periods', () => {
+      expect(
+        financial.MIRR(
+          [
+            [-100, 50],
+            [-50, 121]
+          ],
+          0.1,
+          0.1
+        )
+      ).to.approximately(0.08698102563625021, 1e-12)
+      expect(financial.MIRR(['-100', '50', '-50', '121'], '0.1', '0.1')).to.approximately(0.08698102563625021, 1e-12)
+    })
+
+    it('retains zero periods produced by null, undefined and boolean inputs', () => {
+      for (const value of [null, undefined, false]) {
+        expect(financial.MIRR([value, -100, 121], 0.1, 0.1)).to.approximately(0.1536897329871667, 1e-12)
+      }
+
+      expect(financial.MIRR([true, -1], 0, 0)).to.equal(0)
+    })
+
+    it('retains existing input errors', () => {
+      expect(financial.MIRR([-100, 110], 0.1, 'invalid')).to.equal(error.value)
+      expect(financial.MIRR([-100, 'invalid', 110], 0.1, 0.1)).to.equal(error.value)
+      expect(financial.MIRR([], 0.1, 0.1)).to.equal(error.value)
+      expect(financial.MIRR([-100, error.num, 110], 0.1, 0.1)).to.equal(error.value)
+    })
+
+    it('retains existing results for cash flows without both signs', () => {
+      expect(financial.MIRR([-100, -50], 0.1, 0.1)).to.equal(-1)
+      expect(financial.MIRR([100, 50], 0.1, 0.1)).to.equal(-Infinity)
+      expect(financial.MIRR([0, 0], 0.1, 0.1)).to.be.NaN
+      expect(financial.MIRR([-100], 0.1, 0.1)).to.equal(-1)
+      expect(financial.MIRR([100], 0.1, 0.1)).to.equal(Infinity)
+    })
+
+    it('retains existing results for singular and non-finite rates', () => {
+      expect(financial.MIRR([-100, 110], -1, 0.1)).to.be.NaN
+      expect(financial.MIRR([-100, 110], 0.1, -1)).to.be.NaN
+      expect(financial.MIRR([-100, 50, -50, 121], -2, 0.1)).to.approximately(0.570284882107938, 1e-12)
+      expect(financial.MIRR([-100, 110], Infinity, 0.1)).to.be.NaN
+      expect(financial.MIRR([-100, 110], 0.1, Infinity)).to.be.NaN
+    })
+
+    it('retains existing results for non-finite parsed cash flows', () => {
+      expect(financial.MIRR([-100, Infinity], 0.1, 0.1)).to.equal(Infinity)
+      expect(financial.MIRR([-100, ' ', 110], 0.1, 0.1)).to.be.NaN
+    })
+  })
+
   it('NOMINAL', () => {
     expect(financial.NOMINAL(0.1, 4)).to.approximately(0.09645475633778045, 1e-9)
     expect(financial.NOMINAL(0.1, 4.5)).to.approximately(0.09645475633778045, 1e-9)
