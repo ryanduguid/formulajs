@@ -937,101 +937,19 @@ export function MIRR(values, finance_rate, reinvest_rate) {
     values.some((value) => value < 0) &&
     values.some((value) => value > 0)
   ) {
-    const minimumNormal = 2 ** -1022
+    // Compound receipts to the final period and discount payments to the first, by original index.
+    let receipts = 0
     let payments = 0
-    let incomes = 0
-    let inRange = true
-
-    for (let i = 0; i < n; i++) {
-      const value = values[i]
-      const previousIncomes = incomes
-
-      // Advance receipts through every period, including payments and zeros.
-      incomes *= 1 + reinvest_rate
-
-      if (!Number.isFinite(incomes) || (previousIncomes > 0 && incomes < minimumNormal)) {
-        inRange = false
-        break
-      }
-
-      if (value < 0) {
-        const factor = Math.pow(1 + finance_rate, i)
-        const payment = value / factor
-        payments += payment
-
-        if (
-          !Number.isFinite(factor) ||
-          factor < minimumNormal ||
-          !Number.isFinite(payment) ||
-          -payment < minimumNormal ||
-          !Number.isFinite(payments)
-        ) {
-          inRange = false
-          break
-        }
-      } else {
-        incomes += value
-
-        if (!Number.isFinite(incomes) || (incomes > 0 && incomes < minimumNormal)) {
-          inRange = false
-          break
-        }
-      }
-    }
-
-    if (inRange) {
-      const ratio = -incomes / payments
-
-      if (incomes >= minimumNormal && -payments >= minimumNormal && Number.isFinite(ratio) && ratio >= minimumNormal) {
-        return Math.pow(ratio, 1 / (n - 1)) - 1
-      }
-    }
-
-    // Revalue the original flows when intermediate values leave the normal range.
-    let anchor = 0
-
-    for (const value of values) {
-      anchor = Math.max(anchor, Math.abs(value))
-    }
-
-    const logAnchor = Math.log(anchor)
-    const logFinance = Math.log1p(finance_rate)
-    const logReinvest = Math.log1p(reinvest_rate)
-
-    const termLog = (value, index) => {
-      const magnitude = Math.abs(value)
-      const scaled = magnitude / anchor
-      const logMagnitude =
-        Number.isFinite(scaled) && scaled >= minimumNormal ? Math.log(scaled) : Math.log(magnitude) - logAnchor
-
-      return value > 0 ? logMagnitude + (n - 1 - index) * logReinvest : logMagnitude - index * logFinance
-    }
-
-    let maxIncome = -Infinity
-    let maxPayment = -Infinity
 
     for (let i = 0; i < n; i++) {
       if (values[i] > 0) {
-        maxIncome = Math.max(maxIncome, termLog(values[i], i))
+        receipts += values[i] * Math.pow(1 + reinvest_rate, n - 1 - i)
       } else if (values[i] < 0) {
-        maxPayment = Math.max(maxPayment, termLog(values[i], i))
+        payments += values[i] / Math.pow(1 + finance_rate, i)
       }
     }
 
-    let scaledIncomes = 0
-    let scaledPayments = 0
-
-    for (let i = 0; i < n; i++) {
-      if (values[i] > 0) {
-        scaledIncomes += Math.exp(termLog(values[i], i) - maxIncome)
-      } else if (values[i] < 0) {
-        scaledPayments += Math.exp(termLog(values[i], i) - maxPayment)
-      }
-    }
-
-    const logRatio = maxIncome - maxPayment + (Math.log(scaledIncomes) - Math.log(scaledPayments))
-
-    return Math.expm1(logRatio / (n - 1))
+    return Math.pow(-receipts / payments, 1 / (n - 1)) - 1
   }
 
   // Retain legacy results for degenerate cash flows and rates.
