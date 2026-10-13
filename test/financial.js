@@ -599,25 +599,25 @@ describe('Financial', () => {
       expect(financial.MIRR([-100, error.num, 110], 0.1, 0.1)).to.equal(error.value)
     })
 
-    it('retains existing results for cash flows without both signs', () => {
-      expect(financial.MIRR([-100, -50], 0.1, 0.1)).to.equal(-1)
-      expect(financial.MIRR([100, 50], 0.1, 0.1)).to.equal(-Infinity)
-      expect(financial.MIRR([0, 0], 0.1, 0.1)).to.be.NaN
-      expect(financial.MIRR([-100], 0.1, 0.1)).to.equal(-1)
-      expect(financial.MIRR([100], 0.1, 0.1)).to.equal(Infinity)
+    it('returns #DIV/0! without both a payment and income', () => {
+      expect(financial.MIRR([-100, -50], 0.1, 0.1)).to.equal(error.div0)
+      expect(financial.MIRR([100, 50], 0.1, 0.1)).to.equal(error.div0)
+      expect(financial.MIRR([0, 0], 0.1, 0.1)).to.equal(error.div0)
+      expect(financial.MIRR([-100], 0.1, 0.1)).to.equal(error.div0)
+      expect(financial.MIRR([100], 0.1, 0.1)).to.equal(error.div0)
     })
 
-    it('retains existing results for singular and non-finite rates', () => {
-      expect(financial.MIRR([-100, 110], -1, 0.1)).to.be.NaN
-      expect(financial.MIRR([-100, 110], 0.1, -1)).to.be.NaN
-      expect(financial.MIRR([-100, 50, -50, 121], -2, 0.1)).to.approximately(0.570284882107938, 1e-12)
-      expect(financial.MIRR([-100, 110], Infinity, 0.1)).to.be.NaN
-      expect(financial.MIRR([-100, 110], 0.1, Infinity)).to.be.NaN
+    it('returns #NUM! for rates of -100% or below and non-finite rates', () => {
+      expect(financial.MIRR([-100, 110], -1, 0.1)).to.equal(error.num)
+      expect(financial.MIRR([-100, 110], 0.1, -1)).to.equal(error.num)
+      expect(financial.MIRR([-100, 50, -50, 121], -2, 0.1)).to.equal(error.num)
+      expect(financial.MIRR([-100, 110], Infinity, 0.1)).to.equal(error.num)
+      expect(financial.MIRR([-100, 110], 0.1, Infinity)).to.equal(error.num)
     })
 
-    it('retains existing results for non-finite parsed cash flows', () => {
-      expect(financial.MIRR([-100, Infinity], 0.1, 0.1)).to.equal(Infinity)
-      expect(financial.MIRR([-100, ' ', 110], 0.1, 0.1)).to.be.NaN
+    it('returns #NUM! for non-finite cash flows', () => {
+      expect(financial.MIRR([-100, Infinity], 0.1, 0.1)).to.equal(error.num)
+      expect(financial.MIRR([-100, ' ', 110], 0.1, 0.1)).to.equal(error.num)
     })
   })
 

@@ -911,9 +911,10 @@ export function ISPMT(rate, per, nper, pv) {
  *
  * @param {*} values An array or a reference to values that contain numbers. These numbers represent a series of payments (negative values) and income (positive values) occurring at regular periods.
  - Values must contain at least one positive value and one negative value to calculate the modified internal rate of return. Otherwise, MIRR returns the #DIV/0! error value.
+ - Each value keeps its own period: income is compounded to the last period at reinvest_rate and payments are discounted to the first period at finance_rate, so zeros and the order of payments and income affect the result.
  - If an array or reference argument contains text, logical values, or empty values, those values are ignored; however, values with the value zero are included.
- * @param {*} finance_rate The interest rate you pay on the money used in the cash flows.
- * @param {*} reinvest_rate The interest rate you receive on the cash flows as you reinvest them.
+ * @param {*} finance_rate The interest rate you pay on the money used in the cash flows. Must be greater than -1 (-100%); otherwise MIRR returns the #NUM! error value.
+ * @param {*} reinvest_rate The interest rate you receive on the cash flows as you reinvest them. Must be greater than -1 (-100%); otherwise MIRR returns the #NUM! error value.
  * @returns
  */
 export function MIRR(values, finance_rate, reinvest_rate) {
@@ -925,51 +926,28 @@ export function MIRR(values, finance_rate, reinvest_rate) {
     return error.value
   }
 
-  // Initialize number of values
-  const n = values.length
-
-  if (
-    Number.isFinite(finance_rate) &&
-    finance_rate > -1 &&
-    Number.isFinite(reinvest_rate) &&
-    reinvest_rate > -1 &&
-    values.every(Number.isFinite) &&
-    values.some((value) => value < 0) &&
-    values.some((value) => value > 0)
-  ) {
-    // Compound receipts to the final period and discount payments to the first, by original index.
-    let receipts = 0
-    let payments = 0
-
-    for (let i = 0; i < n; i++) {
-      if (values[i] > 0) {
-        receipts += values[i] * Math.pow(1 + reinvest_rate, n - 1 - i)
-      } else if (values[i] < 0) {
-        payments += values[i] / Math.pow(1 + finance_rate, i)
-      }
-    }
-
-    return Math.pow(-receipts / payments, 1 / (n - 1)) - 1
+  if (![finance_rate, reinvest_rate, ...values].every(Number.isFinite) || finance_rate <= -1 || reinvest_rate <= -1) {
+    return error.num
   }
 
-  // Retain legacy results for degenerate cash flows and rates.
-  // Lookup payments (negative values) and incomes (positive values)
-  const payments = []
-  const incomes = []
+  // Compound income to the last period and discount payments to the first, each from its own period.
+  const n = values.length
+  let futureIncome = 0
+  let presentPayments = 0
 
   for (let i = 0; i < n; i++) {
-    if (values[i] < 0) {
-      payments.push(values[i])
-    } else {
-      incomes.push(values[i])
+    if (values[i] > 0) {
+      futureIncome += values[i] * Math.pow(1 + reinvest_rate, n - 1 - i)
+    } else if (values[i] < 0) {
+      presentPayments += values[i] / Math.pow(1 + finance_rate, i)
     }
   }
 
-  // Return modified internal rate of return
-  const num = -NPV(reinvest_rate, incomes) * Math.pow(1 + reinvest_rate, n - 1)
-  const den = NPV(finance_rate, payments) * (1 + finance_rate)
+  if (futureIncome === 0 || presentPayments === 0) {
+    return error.div0
+  }
 
-  return Math.pow(num / den, 1 / (n - 1)) - 1
+  return Math.pow(-futureIncome / presentPayments, 1 / (n - 1)) - 1
 }
 
 /**
