@@ -1,6 +1,6 @@
 # Formula.js
 
-[![Tests](https://github.com/formulajs/formulajs/actions/workflows/unit-tests.yaml/badge.svg)](https://github.com/formulajs/formulajs/actions/workflows/unit-tests.yaml) [![Build/Publish](https://github.com/formulajs/formulajs/actions/workflows/npm-publish.yaml/badge.svg)](https://github.com/formulajs/formulajs/actions/workflows/npm-publish.yaml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/formulajs/formulajs/unit-tests.yaml?label=Tests&style=flat&labelColor=000000)](https://github.com/formulajs/formulajs/actions/workflows/unit-tests.yaml) [![Build/Publish](https://img.shields.io/github/actions/workflow/status/formulajs/formulajs/npm-publish.yaml?label=Build%2FPublish&style=flat&labelColor=000000)](https://github.com/formulajs/formulajs/actions/workflows/npm-publish.yaml)
 
 [Official website and documentation is here](https://formulajs.info)
 
@@ -26,7 +26,7 @@ formulajs.SUM([1, 2, 3])
 
 ### In node
 
-[![npm](https://img.shields.io/npm/v/@formulajs/formulajs?style=flat-square)](https://www.npmjs.com/package/@formulajs/formulajs) [![npm](https://img.shields.io/npm/dm/@formulajs/formulajs?style=flat-square)](https://www.npmjs.com/package/@formulajs/formulajs)
+[![npm](https://img.shields.io/npm/v/@formulajs/formulajs?style=flat&labelColor=000000&color=66023C)](https://www.npmjs.com/package/@formulajs/formulajs) [![npm](https://img.shields.io/npm/dm/@formulajs/formulajs?style=flat&labelColor=000000&color=66023C)](https://www.npmjs.com/package/@formulajs/formulajs)
 
 Install the package:
 
