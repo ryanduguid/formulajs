@@ -8,7 +8,7 @@
 
 ### In browser
 
-[![](https://data.jsdelivr.com/v1/package/npm/@formulajs/formulajs/badge)](https://www.jsdelivr.com/package/npm/@formulajs/formulajs)
+[![jsDelivr](https://img.shields.io/jsdelivr/npm/hm/@formulajs/formulajs?label=jsDelivr&style=flat&labelColor=000000&color=66023C)](https://www.jsdelivr.com/package/npm/@formulajs/formulajs)
 
 Powered by [jsDelivr](https://www.jsdelivr.com/), you can use the latest version of Formula.js:
 
