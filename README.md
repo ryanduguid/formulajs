@@ -1,6 +1,6 @@
 # Formula.js
 
-[![Tests](https://img.shields.io/github/actions/workflow/status/formulajs/formulajs/unit-tests.yaml?label=Tests&style=flat&labelColor=000000)](https://github.com/formulajs/formulajs/actions/workflows/unit-tests.yaml) [![Build/Publish](https://img.shields.io/github/actions/workflow/status/formulajs/formulajs/npm-publish.yaml?label=Build%2FPublish&style=flat&labelColor=000000)](https://github.com/formulajs/formulajs/actions/workflows/npm-publish.yaml)
+[![Tests](https://github.com/formulajs/formulajs/actions/workflows/unit-tests.yaml/badge.svg)](https://github.com/formulajs/formulajs/actions/workflows/unit-tests.yaml) [![Build/Publish](https://github.com/formulajs/formulajs/actions/workflows/npm-publish.yaml/badge.svg)](https://github.com/formulajs/formulajs/actions/workflows/npm-publish.yaml)
 
 [Official website and documentation is here](https://formulajs.info)
 
@@ -8,7 +8,7 @@
 
 ### In browser
 
-[![jsDelivr](https://img.shields.io/jsdelivr/npm/hm/@formulajs/formulajs?label=jsDelivr&style=flat&labelColor=000000&color=66023C)](https://www.jsdelivr.com/package/npm/@formulajs/formulajs)
+[![](https://data.jsdelivr.com/v1/package/npm/@formulajs/formulajs/badge)](https://www.jsdelivr.com/package/npm/@formulajs/formulajs)
 
 Powered by [jsDelivr](https://www.jsdelivr.com/), you can use the latest version of Formula.js:
 
@@ -26,7 +26,7 @@ formulajs.SUM([1, 2, 3])
 
 ### In node
 
-[![npm](https://img.shields.io/npm/v/@formulajs/formulajs?style=flat&labelColor=000000&color=66023C)](https://www.npmjs.com/package/@formulajs/formulajs) [![npm](https://img.shields.io/npm/dm/@formulajs/formulajs?style=flat&labelColor=000000&color=66023C)](https://www.npmjs.com/package/@formulajs/formulajs)
+[![npm](https://img.shields.io/npm/v/@formulajs/formulajs?style=flat-square)](https://www.npmjs.com/package/@formulajs/formulajs) [![npm](https://img.shields.io/npm/dm/@formulajs/formulajs?style=flat-square)](https://www.npmjs.com/package/@formulajs/formulajs)
 
 Install the package:
 
