@@ -8,7 +8,7 @@ function compact(array) {
   const result = []
 
   utils.arrayEach(array, (value) => {
-    if (value) {
+    if (value || value === 0) {
       result.push(value)
     }
   })
@@ -16,13 +16,51 @@ function compact(array) {
   return result
 }
 
-function findResultIndex(database, criterias) {
-  const matches = {}
+function wildcardPattern(text) {
+  let pattern = ''
 
-  for (let i = 1; i < database[0].length; ++i) {
-    matches[i] = true
+  for (let i = 0; i < text.length; i++) {
+    const char = text.charAt(i)
+    const next = text.charAt(i + 1)
+
+    if (char === '~' && (next === '?' || next === '*' || next === '~')) {
+      pattern += '\\' + next
+      i++
+    } else if (char === '?') {
+      pattern += '.'
+    } else if (char === '*') {
+      pattern += '.*'
+    } else {
+      pattern += char.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
+    }
   }
 
+  return pattern
+}
+
+function matchesCriterion(value, criterion) {
+  if (criterion === void 0 || criterion === '*') {
+    return true
+  }
+
+  const criterionText = criterion + ''
+  const tokens = evalExpression.parse(criterionText)
+  const operator = tokens.length > 0 ? tokens[0].value : undefined
+  const literal = tokens.length > 1 ? tokens[1].value : undefined
+
+  // Text criteria ignore case and accept ? and * wildcards; text typed without an operator matches as a prefix.
+  if (typeof literal === 'string' && (operator === '=' || operator === '<>')) {
+    const isPrefix = !/^[<>=]/.test(criterionText)
+    const regex = new RegExp('^' + wildcardPattern(literal) + (isPrefix ? '' : '$'), 'i')
+    const isMatch = typeof value === 'string' && regex.test(value)
+
+    return operator === '=' ? isMatch : !isMatch
+  }
+
+  return evalExpression.compute([evalExpression.createToken(value, evalExpression.TOKEN_TYPE_LITERAL)].concat(tokens))
+}
+
+function findResultIndex(database, criterias) {
   let maxCriteriaLength = criterias[0].length
 
   for (let i = 1; i < criterias.length; ++i) {
@@ -31,55 +69,31 @@ function findResultIndex(database, criterias) {
     }
   }
 
-  for (let k = 1; k < database.length; ++k) {
-    for (let l = 1; l < database[k].length; ++l) {
-      let currentCriteriaResult = false
-      let hasMatchingCriteria = false
+  const result = []
 
-      for (let j = 0; j < criterias.length; ++j) {
+  for (let l = 1; l < database[0].length; ++l) {
+    let isMatch = false
+
+    // Each criteria row is an alternative; every condition in the same row must hold.
+    for (let p = 1; p < maxCriteriaLength && !isMatch; ++p) {
+      let rowMatches = true
+
+      for (let j = 0; j < criterias.length && rowMatches; ++j) {
         const criteria = criterias[j]
 
-        if (criteria.length < maxCriteriaLength) {
-          continue
-        }
-
-        const criteriaField = criteria[0]
-
-        if (database[k][0] !== criteriaField) {
-          continue
-        }
-
-        hasMatchingCriteria = true
-
-        for (let p = 1; p < criteria.length; ++p) {
-          if (!currentCriteriaResult) {
-            const isWildcard = criteria[p] === void 0 || criteria[p] === '*'
-
-            if (isWildcard) {
-              currentCriteriaResult = true
-            } else {
-              const tokenizedCriteria = evalExpression.parse(criteria[p] + '')
-              const tokens = [evalExpression.createToken(database[k][l], evalExpression.TOKEN_TYPE_LITERAL)].concat(
-                tokenizedCriteria
-              )
-
-              currentCriteriaResult = evalExpression.compute(tokens)
-            }
+        for (let k = 0; k < database.length; ++k) {
+          if (database[k][0] === criteria[0]) {
+            rowMatches = matchesCriterion(database[k][l], criteria[p])
+            break
           }
         }
       }
 
-      if (hasMatchingCriteria) {
-        matches[l] = matches[l] && currentCriteriaResult
-      }
+      isMatch = rowMatches
     }
-  }
 
-  const result = []
-
-  for (let n = 0; n < database[0].length; ++n) {
-    if (matches[n]) {
-      result.push(n - 1)
+    if (isMatch) {
+      result.push(l - 1)
     }
   }
 
