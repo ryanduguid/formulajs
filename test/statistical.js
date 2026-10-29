@@ -1148,4 +1148,31 @@ describe('Statistical', () => {
     expect(statistical.Z.TEST(data, 6)).to.approximately(0.86304338912953, 1e-9)
     expect(statistical.Z.TEST(data, 'invalid')).to.equal(error.value)
   })
+
+  describe('regressions', () => {
+    it('PROB keeps each value with its probability', () => {
+      expect(statistical.PROB([2, 1], [0.8, 0.2], 1, 1.5)).to.approximately(0.2, 1e-9)
+      expect(statistical.PROB([3, 1, 2], [0.5, 0.2, 0.3], 1, 2)).to.approximately(0.5, 1e-9)
+    })
+
+    it('BETA.DIST scales the density to the interval from A to B', () => {
+      expect(statistical.BETA.DIST(2, 8, 10, false, 1, 3)).to.approximately(1.4837646, 1e-7)
+    })
+
+    it('AVERAGEIF keeps average_range aligned when it contains empty cells', () => {
+      expect(statistical.AVERAGEIF([1, 2], '>1', [undefined, 10])).to.equal(10)
+      expect(statistical.AVERAGEIF([1, 2, 3], '>1', [5, null, 10])).to.equal(10)
+    })
+
+    it('VARA, VARPA, STDEVA and STDEVPA ignore empty entries', () => {
+      expect(statistical.VARA([1, 2, 3, null])).to.approximately(1, 1e-9)
+      expect(statistical.VARPA([1, 2, 3, null])).to.approximately(2 / 3, 1e-9)
+      expect(statistical.STDEVA([1, 2, 3, null])).to.approximately(1, 1e-9)
+      expect(statistical.STDEVPA([1, 2, 3, null])).to.approximately(Math.sqrt(2 / 3), 1e-9)
+    })
+
+    it('SMALL returns the error for an invalid k', () => {
+      expect(statistical.SMALL([1, 2, 3], 'invalid')).to.equal(error.value)
+    })
+  })
 })
