@@ -39,7 +39,7 @@ function wildcardPattern(text) {
 }
 
 function matchesCriterion(value, criterion) {
-  if (criterion === void 0 || criterion === '*') {
+  if (criterion === void 0) {
     return true
   }
 

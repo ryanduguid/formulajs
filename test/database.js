@@ -671,6 +671,7 @@ describe('Database', () => {
       expect(database.DSUM(trees, 'Yield', [['Tree', '=apple']])).to.equal(5)
       expect(database.DCOUNT(trees, 'Yield', [['Tree', '=Pea']])).to.equal(0)
       expect(database.DSUM(trees, 'Yield', [['Tree', '<>apple']])).to.equal(10)
+      expect(database.DCOUNTA([['Field', 5, 'x']], 'Field', [['Field', '*']])).to.equal(1)
     })
   })
 })
