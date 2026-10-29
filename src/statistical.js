@@ -361,7 +361,7 @@ BINOM.INV = (trials, probability_s, alpha) => {
 export const CHISQ = {}
 
 /**
- * Returns the cumulative beta probability density function.
+ * Returns the chi-squared distribution.
  *
  * Category: Statistical
  *
@@ -407,7 +407,7 @@ CHISQ.DIST.RT = (x, deg_freedom) => {
 }
 
 /**
- * Returns the cumulative beta probability density function.
+ * Returns the inverse of the left-tailed probability of the chi-squared distribution.
  *
  * Category: Statistical
  *
