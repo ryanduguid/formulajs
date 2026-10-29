@@ -20,7 +20,7 @@ export function CHOOSE() {
     return error.na
   }
 
-  const index = arguments[0]
+  const index = Math.floor(arguments[0])
 
   if (index < 1 || index > 254) {
     return error.value
@@ -293,6 +293,15 @@ export function INDEX(array, row_num, column_num) {
 
   const isOneDimensionRange = array.length > 0 && !Array.isArray(array[0])
 
+  // A zero row or column selects the whole column or row of a two-dimensional array
+  if (!isOneDimensionRange && row_num === 0 && column_num > 0) {
+    return column_num <= array[0].length ? array.map((row) => [row[column_num - 1]]) : error.ref
+  }
+
+  if (!isOneDimensionRange && column_num === 0 && row_num > 0) {
+    return row_num <= array.length ? [array[row_num - 1]] : error.ref
+  }
+
   if (isOneDimensionRange && !column_num) {
     column_num = row_num
     row_num = 1
@@ -349,6 +358,30 @@ export function LOOKUP(lookup_value, array, result_array) {
   return result
 }
 
+// Convert ? and * wildcards to a regular expression; a tilde makes the next character literal.
+function wildcardPattern(text) {
+  const escape = (char) => char.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
+  let pattern = ''
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text.charAt(i)
+    const next = text.charAt(i + 1)
+
+    if (char === '~' && next !== '') {
+      pattern += escape(next)
+      i++
+    } else if (char === '?') {
+      pattern += '.'
+    } else if (char === '*') {
+      pattern += '.*'
+    } else {
+      pattern += escape(char)
+    }
+  }
+
+  return pattern
+}
+
 /**
  * Looks up values in a reference or array.
  *
@@ -378,6 +411,12 @@ export function MATCH(lookup_value, lookup_array, match_type) {
     return error.na
   }
 
+  if (match_type !== 0 && typeof lookup_value === 'string') {
+    // Text comparisons ignore case in every match mode
+    lookup_value = lookup_value.toLowerCase()
+    lookup_array = lookup_array.map((value) => (typeof value === 'string' ? value.toLowerCase() : value))
+  }
+
   let index
   let indexValue
 
@@ -396,18 +435,7 @@ export function MATCH(lookup_value, lookup_array, match_type) {
       }
     } else if (match_type === 0) {
       if (typeof lookup_value === 'string' && typeof lookup_array[idx] === 'string') {
-        const lookupValueStr = lookup_value
-          .toLowerCase()
-          .replace(/\?/g, '.')
-          .replace(/\*/g, '.*')
-          .replace(/~/g, '\\')
-          .replace(/\+/g, '\\+')
-          .replace(/\(/g, '\\(')
-          .replace(/\)/g, '\\)')
-          .replace(/\[/g, '\\[')
-          .replace(/\]/g, '\\]')
-
-        const regex = new RegExp('^' + lookupValueStr + '$')
+        const regex = new RegExp('^' + wildcardPattern(lookup_value.toLowerCase()) + '$')
 
         if (regex.test(lookup_array[idx].toLowerCase())) {
           return idx + 1
@@ -495,8 +523,13 @@ export function SORT(array, sort_index = 1, sort_order = 1, by_col = false) {
 
   const sortArray = (arr) =>
     arr.sort((a, b) => {
-      a = utils.parseString(a[sort_index - 1])
-      b = utils.parseString(b[sort_index - 1])
+      a = a[sort_index - 1]
+      b = b[sort_index - 1]
+
+      if (typeof a !== 'number' || typeof b !== 'number') {
+        a = utils.parseString(a)
+        b = utils.parseString(b)
+      }
 
       return sort_order === 1 ? (a < b ? sort_order * -1 : sort_order) : a > b ? sort_order : sort_order * -1
     })
