@@ -152,12 +152,15 @@ export function AVERAGEIF(range, criteria, average_range) {
   const flatAverageRange = utils.flatten(average_range)
   const flatAverageRangeDefined = flatAverageRange.filter(utils.isDefined)
 
-  average_range = utils.parseNumberArray(flatAverageRangeDefined)
+  const parsedAverageRange = utils.parseNumberArray(flatAverageRangeDefined)
   range = utils.flatten(range)
 
-  if (average_range instanceof Error) {
-    return average_range
+  if (parsedAverageRange instanceof Error) {
+    return parsedAverageRange
   }
+
+  // Keep positions aligned with range; empty cells in average_range are skipped below
+  average_range = flatAverageRange.map((value) => (utils.isDefined(value) ? utils.parseNumber(value) : value))
 
   let average_count = 0
   let result = 0
@@ -167,6 +170,10 @@ export function AVERAGEIF(range, criteria, average_range) {
 
   for (let i = 0; i < range.length; i++) {
     const value = range[i]
+
+    if (!utils.isDefined(average_range[i])) {
+      continue
+    }
 
     if (isWildcard) {
       result += average_range[i]
@@ -237,7 +244,7 @@ BETA.DIST = function (x, alpha, beta, cumulative, a, b) {
 
   x = (x - a) / (b - a)
 
-  return cumulative ? jStat.beta.cdf(x, alpha, beta) : jStat.beta.pdf(x, alpha, beta)
+  return cumulative ? jStat.beta.cdf(x, alpha, beta) : jStat.beta.pdf(x, alpha, beta) / (b - a)
 }
 
 /**
@@ -2263,14 +2270,13 @@ export function PROB(x_range, prob_range, lower_limit, upper_limit) {
     return x_range.indexOf(lower_limit) >= 0 ? prob_range[x_range.indexOf(lower_limit)] : 0
   }
 
-  const sorted = x_range.sort((a, b) => a - b)
-  const n = sorted.length
+  const n = x_range.length
 
   let result = 0
 
   for (let i = 0; i < n; i++) {
-    if (sorted[i] >= lower_limit && sorted[i] <= upper_limit) {
-      result += prob_range[x_range.indexOf(sorted[i])]
+    if (x_range[i] >= lower_limit && x_range[i] <= upper_limit) {
+      result += prob_range[i]
     }
   }
 
@@ -2558,7 +2564,7 @@ export function SMALL(array, k) {
   k = utils.parseNumber(k)
 
   if (utils.anyIsError(array, k)) {
-    return array
+    return array instanceof Error ? array : k
   }
 
   return array.sort((a, b) => a - b)[k - 1]
@@ -2990,7 +2996,7 @@ export function VARA() {
       sigma += Math.pow(el - mean, 2)
     } else if (el === true) {
       sigma += Math.pow(1 - mean, 2)
-    } else {
+    } else if (el !== null) {
       sigma += Math.pow(0 - mean, 2)
     }
 
@@ -3028,7 +3034,7 @@ export function VARPA() {
       sigma += Math.pow(el - mean, 2)
     } else if (el === true) {
       sigma += Math.pow(1 - mean, 2)
-    } else {
+    } else if (el !== null) {
       sigma += Math.pow(0 - mean, 2)
     }
 
