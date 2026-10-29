@@ -633,4 +633,45 @@ describe('Database', () => {
       )
     ).to.equal(4)
   })
+
+  describe('criteria regressions', () => {
+    const trees = [
+      ['Tree', 'Apple', 'Pear', 'Cherry', 'Apple', 'Pear'],
+      ['Height', 18, 12, 13, 9, 20],
+      ['Yield', 1, 2, 0, 4, 8]
+    ]
+
+    it('filters on the first database field', () => {
+      expect(database.DGET(trees, 'Height', [['Tree', 'Cherry']])).to.equal(13)
+      expect(database.DSUM(trees, 'Yield', [['Tree', 'Apple']])).to.equal(5)
+    })
+
+    it('keeps selected zero values in DPRODUCT, DSTDEV and DSTDEVP', () => {
+      // Height < 15 selects the yields 2, 0 and 4
+      expect(database.DPRODUCT(trees, 'Yield', [['Height', '<15']])).to.equal(0)
+      expect(database.DSTDEV(trees, 'Yield', [['Height', '<15']])).to.approximately(2, 1e-9)
+      expect(database.DSTDEVP(trees, 'Yield', [['Height', '<15']])).to.approximately(Math.sqrt(8 / 3), 1e-9)
+    })
+
+    it('combines criteria in the same row and treats separate rows as alternatives', () => {
+      // (Apple AND Height > 15) OR (Pear AND Height < 15) selects the yields 1 and 2
+      expect(
+        database.DSUM(trees, 'Yield', [
+          ['Tree', 'Apple', 'Pear'],
+          ['Height', '>15', '<15']
+        ])
+      ).to.equal(3)
+    })
+
+    it('matches text criteria case-insensitively, by prefix and with wildcards', () => {
+      expect(database.DSUM(trees, 'Yield', [['Tree', 'apple']])).to.equal(5)
+      expect(database.DSUM(trees, 'Yield', [['Tree', 'Pe']])).to.equal(10)
+      expect(database.DSUM(trees, 'Yield', [['Tree', 'P?ar']])).to.equal(10)
+      expect(database.DSUM(trees, 'Yield', [['Tree', '*rr*']])).to.equal(0)
+      expect(database.DSUM(trees, 'Yield', [['Tree', '=apple']])).to.equal(5)
+      expect(database.DCOUNT(trees, 'Yield', [['Tree', '=Pea']])).to.equal(0)
+      expect(database.DSUM(trees, 'Yield', [['Tree', '<>apple']])).to.equal(10)
+      expect(database.DCOUNTA([['Field', 5, 'x']], 'Field', [['Field', '*']])).to.equal(1)
+    })
+  })
 })
