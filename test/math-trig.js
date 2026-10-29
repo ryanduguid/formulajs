@@ -1097,4 +1097,71 @@ describe('Math & Trig', () => {
     expect(mathTrig.TRUNC(0.45)).to.equal(0)
     expect(mathTrig.TRUNC('invalid')).to.equal(error.value)
   })
+
+  describe('regressions', () => {
+    it('AGGREGATE applies the error-ignoring options', () => {
+      expect(mathTrig.AGGREGATE(9, 6, [1, error.div0, 2])).to.equal(3)
+      expect(mathTrig.AGGREGATE(9, 4, [1, error.div0, 2])).to.equal(error.div0)
+    })
+
+    it('FACT returns #NUM! for a negative number', () => {
+      expect(mathTrig.FACT(-1)).to.equal(error.num)
+    })
+
+    it('MMULT returns #VALUE! for an empty matrix', () => {
+      expect(mathTrig.MMULT([], [[1]])).to.equal(error.value)
+    })
+
+    it('QUOTIENT returns the integer portion and #DIV/0! for a zero denominator', () => {
+      expect(mathTrig.QUOTIENT(1e-7, 1)).to.equal(0)
+      expect(mathTrig.QUOTIENT(1e22, 1)).to.equal(1e22)
+      expect(mathTrig.QUOTIENT(-10, 3)).to.equal(-3)
+      expect(mathTrig.QUOTIENT(1, 0)).to.equal(error.div0)
+    })
+
+    it('ATAN2 measures the angle of the point (x_num, y_num)', () => {
+      expect(mathTrig.ATAN2(1, 0)).to.equal(0)
+      expect(mathTrig.ATAN2(0, 1)).to.approximately(Math.PI / 2, 1e-9)
+      expect(mathTrig.ATAN2(-1, 0)).to.approximately(Math.PI, 1e-9)
+    })
+
+    it('MOD takes the sign of the divisor for negative inputs', () => {
+      expect(mathTrig.MOD(-4, 2)).to.equal(0)
+      expect(mathTrig.MOD(-3, -2)).to.equal(-1)
+      expect(mathTrig.MOD(-3, 2)).to.equal(1)
+      expect(mathTrig.MOD(3, -2)).to.equal(-1)
+    })
+
+    it('BASE validates the radix and min_length and truncates min_length', () => {
+      expect(mathTrig.BASE(7, 1)).to.equal(error.num)
+      expect(mathTrig.BASE(7, 37)).to.equal(error.num)
+      expect(mathTrig.BASE(7, 2, -1)).to.equal(error.num)
+      expect(mathTrig.BASE(7, 2, 5.5)).to.equal('00111')
+      expect(mathTrig.BASE(7.5, 2)).to.equal('111')
+    })
+
+    it('DECIMAL rejects characters that are not valid for the radix', () => {
+      expect(mathTrig.DECIMAL('10Z', 10)).to.equal(error.num)
+      expect(mathTrig.DECIMAL('ff', 16)).to.equal(255)
+    })
+
+    it('ROUND, ROUNDUP and ROUNDDOWN shift numbers already in exponential notation', () => {
+      expect(mathTrig.ROUND(1e-7, 8)).to.equal(1e-7)
+      expect(mathTrig.ROUND(1.5e-7, 7)).to.equal(2e-7)
+      expect(mathTrig.ROUNDUP(1e-7, 8)).to.equal(1e-7)
+      expect(mathTrig.ROUNDDOWN(1e-7, 8)).to.equal(1e-7)
+    })
+
+    it('SUMIF sums sum_range for the * criterion', () => {
+      expect(mathTrig.SUMIF(['a', 'b'], '*', [10, 20])).to.equal(30)
+      expect(mathTrig.SUMIF(['a', 'b'], '*')).to.equal(0)
+      expect(mathTrig.SUMIF(['a'], '*', [error.div0])).to.equal(error.div0)
+    })
+
+    it('SUMPRODUCT returns #VALUE! for arrays of different dimensions', () => {
+      expect(mathTrig.SUMPRODUCT([[1], [2]], [[3]])).to.equal(error.value)
+      expect(mathTrig.SUMPRODUCT([1, 2], [3])).to.equal(error.value)
+      expect(mathTrig.SUMPRODUCT([[1, 2]], [[3]])).to.equal(error.value)
+    })
+  })
 })

@@ -130,10 +130,15 @@ export function ACOTH(number) {
  */
 export function AGGREGATE(function_num, options, ref1, ref2) {
   function_num = utils.parseNumber(function_num)
-  options = utils.parseNumber(function_num)
+  options = utils.parseNumber(options)
 
   if (utils.anyIsError(function_num, options)) {
     return error.value
+  }
+
+  // Options 2, 3, 6 and 7 ignore error values; arrays carry no hidden-row information
+  if ([2, 3, 6, 7].includes(options)) {
+    ref1 = utils.flatten(ref1).filter((value) => !(value instanceof Error))
   }
 
   switch (function_num) {
@@ -300,7 +305,7 @@ export function ATAN2(x_num, y_num) {
     return anyError
   }
 
-  return Math.atan2(x_num, y_num)
+  return Math.atan2(y_num, x_num)
 }
 
 /**
@@ -347,7 +352,11 @@ export function BASE(number, radix, min_length) {
     return anyError
   }
 
-  if (radix === 0) {
+  number = Math.trunc(number)
+  radix = Math.trunc(radix)
+  min_length = Math.trunc(min_length)
+
+  if (radix < 2 || radix > 36 || min_length < 0) {
     return error.num
   }
 
@@ -642,6 +651,18 @@ export function DECIMAL(text, radix) {
     return error.num
   }
 
+  // Every character must be a digit that is valid for the radix
+  const digits = '0123456789abcdefghijklmnopqrstuvwxyz'.slice(0, radix)
+
+  if (
+    !String(text)
+      .toLowerCase()
+      .split('')
+      .every((char) => digits.includes(char))
+  ) {
+    return error.num
+  }
+
   const result = parseInt(text, radix)
 
   if (isNaN(result)) {
@@ -732,6 +753,10 @@ export function FACT(number) {
   }
 
   const n = Math.floor(number)
+
+  if (n < 0) {
+    return error.num
+  }
 
   if (n === 0 || n === 1) {
     return 1
@@ -1032,6 +1057,8 @@ export function MMULT(array1, array2) {
     !Array.isArray(array1) ||
     !Array.isArray(array2) ||
     // There are empty arrays
+    !array1.length ||
+    !array2.length ||
     array1.some((el) => !el.length) ||
     array2.some((el) => !el.length) ||
     // Not all array elements are numbers
@@ -1072,10 +1099,13 @@ export function MOD(number, divisor) {
     return error.div0
   }
 
-  let modulus = Math.abs(number % divisor)
-  modulus = number < 0 ? divisor - modulus : modulus
+  // MOD(n, d) = n - d * INT(n / d), so a nonzero result takes the sign of the divisor
+  let modulus = number % divisor
+  if (modulus !== 0 && modulus < 0 !== divisor < 0) {
+    modulus += divisor
+  }
 
-  return divisor > 0 ? modulus : -modulus
+  return modulus === 0 ? 0 : modulus
 }
 
 /**
@@ -1274,7 +1304,11 @@ export function QUOTIENT(numerator, denominator) {
     return anyError
   }
 
-  return parseInt(numerator / denominator, 10)
+  if (denominator === 0) {
+    return error.div0
+  }
+
+  return Math.trunc(numerator / denominator)
 }
 
 /**
@@ -1416,14 +1450,14 @@ function roundBase(number, num_digits, roundFn) {
   // Shift the decimal point using scientific notation strings.
   // Use strings because standard math (e.g., 1.005 * 100) introduces
   // artifacts like 100.499999... which rounds incorrectly.
-  let pair = (val + 'e' + num_digits).split('e')
+  let pair = (val + 'e').split('e')
 
   // Apply the specific rounding strategy (round, floor, or ceil)
-  const shifted = roundFn(pair[0] + 'e' + pair[1])
+  const shifted = roundFn(pair[0] + 'e' + (Number(pair[1]) + num_digits))
 
   // Shift back
-  pair = (shifted + 'e' + -num_digits).split('e')
-  const rounded = Number(pair[0] + 'e' + pair[1])
+  pair = (shifted + 'e').split('e')
+  const rounded = Number(pair[0] + 'e' + (Number(pair[1]) - num_digits))
 
   // Restore sign
   return rounded * sign
@@ -1766,7 +1800,14 @@ export function SUMIF(range, criteria, sum_range) {
     const sumValue = sum_range[i]
 
     if (isWildcard) {
-      result += value
+      // A matching error propagates; otherwise only numbers are added
+      if (sumValue instanceof Error) {
+        return sumValue
+      }
+
+      if (typeof sumValue === 'number') {
+        result += sumValue
+      }
     } else {
       const tokens = [evalExpression.createToken(value, evalExpression.TOKEN_TYPE_LITERAL)].concat(tokenizedCriteria)
 
@@ -1792,6 +1833,20 @@ export function SUMIFS() {
   return SUM(values)
 }
 
+function haveSameDimensions(array1, array2) {
+  if (!Array.isArray(array1) || !Array.isArray(array2)) {
+    return true
+  }
+
+  return (
+    array1.length === array2.length &&
+    array1.every(
+      (row, i) =>
+        Array.isArray(row) === Array.isArray(array2[i]) && (!Array.isArray(row) || row.length === array2[i].length)
+    )
+  )
+}
+
 /**
  * Returns the sum of the products of corresponding array components.
  *
@@ -1802,6 +1857,13 @@ export function SUMIFS() {
 export function SUMPRODUCT() {
   if (!arguments || arguments.length === 0) {
     return error.value
+  }
+
+  // Array arguments must all have the same dimensions
+  for (let k = 1; k < arguments.length; k++) {
+    if (!haveSameDimensions(arguments[0], arguments[k])) {
+      return error.value
+    }
   }
 
   const arrays = arguments.length + 1
