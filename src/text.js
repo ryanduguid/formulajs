@@ -358,7 +358,13 @@ export function NUMBERVALUE(text, decimal_separator, group_separator) {
   decimal_separator = typeof decimal_separator === 'undefined' ? '.' : decimal_separator
   group_separator = typeof group_separator === 'undefined' ? ',' : group_separator
 
-  return Number(text.replace(decimal_separator, '.').replace(group_separator, ''))
+  // A group separator after the decimal separator is invalid
+  const decimalIndex = text.indexOf(decimal_separator)
+  if (decimal_separator && group_separator && decimalIndex > -1 && text.indexOf(group_separator, decimalIndex) > -1) {
+    return error.value
+  }
+
+  return Number(text.split(group_separator).join('').replace(decimal_separator, '.'))
 }
 
 /**
@@ -428,7 +434,7 @@ export function REPT(text, number_times) {
     return number_times
   }
 
-  return new Array(number_times + 1).join(text)
+  return new Array(Math.trunc(number_times) + 1).join(text)
 }
 
 /**
@@ -508,16 +514,17 @@ export function SUBSTITUTE(text, old_text, new_text, instance_num) {
       return error.value
     }
 
-    let index = 0
+    let index = text.indexOf(old_text)
     let i = 0
 
-    while (index > -1 && text.indexOf(old_text, index) > -1) {
-      index = text.indexOf(old_text, index + 1)
+    while (index > -1) {
       i++
 
-      if (index > -1 && i === instance_num) {
+      if (i === instance_num) {
         return text.substring(0, index) + new_text + text.substring(index + old_text.length)
       }
+
+      index = text.indexOf(old_text, index + 1)
     }
 
     return text
@@ -574,8 +581,10 @@ export function TEXT(value, format_text) {
   const isPercent = format_text.endsWith('%')
   format_text = format_text.replace(/%/g, '').replace(/\$/g, '')
 
-  // count all 0s after the decimal point
-  const decimalPlaces = format_text.includes('.') ? format_text.split('.')[1].match(/0/g).length : 0
+  // count the 0 (always shown) and # (shown when significant) placeholders after the decimal point
+  const decimalFormat = format_text.includes('.') ? format_text.split('.')[1] : ''
+  const optionalPlaces = (decimalFormat.match(/#/g) || []).length
+  const decimalPlaces = (decimalFormat.match(/0/g) || []).length + optionalPlaces
 
   const noCommas = !format_text.includes(',')
 
@@ -584,6 +593,10 @@ export function TEXT(value, format_text) {
   }
 
   value = FIXED(value, decimalPlaces, noCommas)
+
+  if (optionalPlaces > 0) {
+    value = value.replace(new RegExp('0{1,' + optionalPlaces + '}$'), '')
+  }
 
   if (value.startsWith('-')) {
     value = value.replace('-', '')
@@ -620,7 +633,9 @@ export function TEXTJOIN(delimiter, ignore_empty, ...args) {
   delimiter = delimiter !== null && delimiter !== undefined ? delimiter : ''
 
   let flatArgs = utils.flatten(args)
-  let textToJoin = ignore_empty ? flatArgs.filter((text) => text) : flatArgs
+  let textToJoin = ignore_empty ? flatArgs.filter((text) => utils.isDefined(text) && text !== '') : flatArgs
+  // Logical values join as TRUE and FALSE
+  textToJoin = textToJoin.map((text) => (typeof text === 'boolean' ? (text ? 'TRUE' : 'FALSE') : text))
 
   if (Array.isArray(delimiter)) {
     delimiter = utils.flatten(delimiter)
@@ -663,9 +678,54 @@ export function TRIM(text) {
   return text.replace(/\s+/g, ' ').trim()
 }
 
-export const UNICHAR = CHAR
+/**
+ * Returns the Unicode character that is referenced by the given numeric value.
+ *
+ * Category: Text
+ *
+ * @param {*} number Is the Unicode number that represents the character.
+ * @returns
+ */
+export function UNICHAR(number) {
+  number = utils.parseNumber(number)
 
-export const UNICODE = CODE
+  if (number instanceof Error) {
+    return number
+  }
+
+  number = Math.trunc(number)
+
+  if (number < 1 || number > 0x10ffff) {
+    return error.value
+  }
+
+  // A surrogate code point on its own is not a character
+  if (number >= 0xd800 && number <= 0xdfff) {
+    return error.na
+  }
+
+  return String.fromCodePoint(number)
+}
+
+/**
+ * Returns the number (code point) that corresponds to the first character of the text.
+ *
+ * Category: Text
+ *
+ * @param {*} text Is the character for which you want the Unicode value.
+ * @returns
+ */
+export function UNICODE(text) {
+  if (utils.anyIsError(text)) {
+    return text
+  }
+
+  text = text || ''
+  const result = text.codePointAt(0)
+
+  // An unpaired surrogate is not a character
+  return result === undefined || (result >= 0xd800 && result <= 0xdfff) ? error.value : result
+}
 
 /**
  * Converts text to uppercase.
