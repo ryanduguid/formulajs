@@ -726,6 +726,10 @@ describe('Financial', () => {
       expect(financial.MIRR([-1, -2, -3], 0.1, 0.1)).to.equal(error.div0)
     })
 
+    it('MIRR returns an error found among the cash flows', () => {
+      expect(financial.MIRR([-100, error.div0, 200], 0.1, 0.1)).to.equal(error.div0)
+    })
+
     it('MIRR keeps each cash flow in its period', () => {
       expect(financial.MIRR([-100, 50, -10, 80], 0.1, 0.12)).to.approximately(
         Math.pow((50 * 1.12 ** 2 + 80) / (100 + 10 / 1.1 ** 2), 1 / 3) - 1,

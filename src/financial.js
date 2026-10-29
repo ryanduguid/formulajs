@@ -923,7 +923,12 @@ export function MIRR(values, finance_rate, reinvest_rate) {
   finance_rate = utils.parseNumber(finance_rate)
   reinvest_rate = utils.parseNumber(reinvest_rate)
 
-  if (utils.anyIsError(values, finance_rate, reinvest_rate)) {
+  // An error among the cash flows propagates unchanged
+  if (values instanceof Error) {
+    return values
+  }
+
+  if (utils.anyIsError(finance_rate, reinvest_rate)) {
     return error.value
   }
 
