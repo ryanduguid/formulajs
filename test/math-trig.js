@@ -1155,6 +1155,7 @@ describe('Math & Trig', () => {
     it('SUMIF sums sum_range for the * criterion', () => {
       expect(mathTrig.SUMIF(['a', 'b'], '*', [10, 20])).to.equal(30)
       expect(mathTrig.SUMIF(['a', 'b'], '*')).to.equal(0)
+      expect(mathTrig.SUMIF(['a'], '*', [error.div0])).to.equal(error.div0)
     })
 
     it('SUMPRODUCT returns #VALUE! for arrays of different dimensions', () => {

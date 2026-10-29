@@ -1800,7 +1800,11 @@ export function SUMIF(range, criteria, sum_range) {
     const sumValue = sum_range[i]
 
     if (isWildcard) {
-      // Only numbers are added
+      // A matching error propagates; otherwise only numbers are added
+      if (sumValue instanceof Error) {
+        return sumValue
+      }
+
       if (typeof sumValue === 'number') {
         result += sumValue
       }
