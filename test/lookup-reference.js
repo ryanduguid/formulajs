@@ -3451,4 +3451,54 @@ describe('Lookup Reference', () => {
       })
     })
   })
+
+  describe('regressions', () => {
+    it('CHOOSE truncates a fractional index', () => {
+      expect(lookup.CHOOSE(1.5, 'a', 'b')).to.equal('a')
+      expect(lookup.CHOOSE(2.9, 'a', 'b')).to.equal('b')
+    })
+
+    it('SORT orders numbers numerically', () => {
+      expect(lookup.SORT([[2], [10], [1]])).to.deep.equal([[1], [2], [10]])
+      expect(lookup.SORT([[2], [10], [1]], 1, -1)).to.deep.equal([[10], [2], [1]])
+    })
+
+    it('INDEX returns a whole column or row for a zero selector', () => {
+      expect(
+        lookup.INDEX(
+          [
+            [1, 2],
+            [3, 4]
+          ],
+          0,
+          2
+        )
+      ).to.deep.equal([[2], [4]])
+      expect(
+        lookup.INDEX(
+          [
+            [1, 2],
+            [3, 4]
+          ],
+          2,
+          0
+        )
+      ).to.deep.equal([[3, 4]])
+    })
+
+    it('MATCH treats regular-expression characters literally and honours tilde escapes', () => {
+      expect(lookup.MATCH('a.b', ['axb'], 0)).to.equal(error.na)
+      expect(lookup.MATCH('a.b', ['axb', 'a.b'], 0)).to.equal(2)
+      expect(lookup.MATCH('a~*', ['ab', 'a*'], 0)).to.equal(2)
+      expect(lookup.MATCH('a~?', ['ab', 'a?'], 0)).to.equal(2)
+      expect(lookup.MATCH('a\\', ['a\\'], 0)).to.equal(1)
+      expect(lookup.MATCH('^a$', ['^a$'], 0)).to.equal(1)
+      expect(lookup.MATCH('a?c', ['abc'], 0)).to.equal(1)
+    })
+
+    it('MATCH ignores case in approximate modes', () => {
+      expect(lookup.MATCH('B', ['a', 'b', 'c'], 1)).to.equal(2)
+      expect(lookup.MATCH('B', ['c', 'b', 'a'], -1)).to.equal(2)
+    })
+  })
 })
