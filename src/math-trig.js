@@ -352,6 +352,7 @@ export function BASE(number, radix, min_length) {
     return anyError
   }
 
+  number = Math.trunc(number)
   radix = Math.trunc(radix)
   min_length = Math.trunc(min_length)
 
@@ -1799,7 +1800,10 @@ export function SUMIF(range, criteria, sum_range) {
     const sumValue = sum_range[i]
 
     if (isWildcard) {
-      result += sumValue
+      // Only numbers are added
+      if (typeof sumValue === 'number') {
+        result += sumValue
+      }
     } else {
       const tokens = [evalExpression.createToken(value, evalExpression.TOKEN_TYPE_LITERAL)].concat(tokenizedCriteria)
 

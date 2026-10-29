@@ -1137,6 +1137,7 @@ describe('Math & Trig', () => {
       expect(mathTrig.BASE(7, 37)).to.equal(error.num)
       expect(mathTrig.BASE(7, 2, -1)).to.equal(error.num)
       expect(mathTrig.BASE(7, 2, 5.5)).to.equal('00111')
+      expect(mathTrig.BASE(7.5, 2)).to.equal('111')
     })
 
     it('DECIMAL rejects characters that are not valid for the radix', () => {
@@ -1153,6 +1154,7 @@ describe('Math & Trig', () => {
 
     it('SUMIF sums sum_range for the * criterion', () => {
       expect(mathTrig.SUMIF(['a', 'b'], '*', [10, 20])).to.equal(30)
+      expect(mathTrig.SUMIF(['a', 'b'], '*')).to.equal(0)
     })
 
     it('SUMPRODUCT returns #VALUE! for arrays of different dimensions', () => {
