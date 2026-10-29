@@ -527,7 +527,7 @@ export function COSH(number) {
 }
 
 /**
- * Returns the hyperbolic cosine of a number.
+ * Returns the cotangent of an angle specified in radians.
  *
  * Category: Math and trigonometry
  *
@@ -549,7 +549,7 @@ export function COT(number) {
 }
 
 /**
- * Returns the cotangent of an angle.
+ * Returns the hyperbolic cotangent of a hyperbolic angle.
  *
  * Category: Math and trigonometry
  *
