@@ -91,7 +91,7 @@ export function DATE(year, month, day) {
     }
   }
 
-  return returnSerial ? dateToSerial(result) : result
+  return returnSerial && !(result instanceof Error) ? dateToSerial(result) : result
 }
 
 /**
@@ -165,7 +165,10 @@ export function DATEDIF(start_date, end_date, unit) {
       result = result % 12
       break
     case 'YD':
-      if (end_date_month > start_date_month || (end_date_month === start_date_month && end_date_day < start_date_day)) {
+      if (
+        end_date_month > start_date_month ||
+        (end_date_month === start_date_month && end_date_day >= start_date_day)
+      ) {
         start_date.setFullYear(end_date_year)
       } else {
         start_date.setFullYear(end_date_year - 1)
@@ -492,6 +495,12 @@ NETWORKDAYS.INTL = (start_date, end_date, weekend, holidays) => {
     return end_date
   }
 
+  if (end_date < start_date) {
+    const days = NETWORKDAYS.INTL(end_date, start_date, weekend, holidays)
+
+    return days instanceof Error ? days : -days
+  }
+
   let isMask = false
   const maskDays = []
   const maskIndex = [1, 2, 3, 4, 5, 6, 0]
@@ -571,7 +580,18 @@ NETWORKDAYS.INTL = (start_date, end_date, weekend, holidays) => {
  * @returns
  */
 export function NOW() {
-  return returnSerial ? dateToSerial(new Date()) : new Date()
+  const now = new Date()
+
+  if (!returnSerial) {
+    return now
+  }
+
+  // dateToSerial returns whole days, so add the clock time as a fraction of a day.
+  // Using the clock fields keeps the fraction right on daylight-saving change days.
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const seconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds() + now.getMilliseconds() / 1000
+
+  return dateToSerial(midnight) + seconds / 86400
 }
 
 /**
@@ -615,7 +635,7 @@ export function TIME(hour, minute, second) {
     return error.num
   }
 
-  return (3600 * hour + 60 * minute + second) / 86400
+  return ((3600 * hour + 60 * minute + second) % 86400) / 86400
 }
 
 /**
@@ -743,8 +763,13 @@ WORKDAY.INTL = (start_date, days, weekend, holidays) => {
     return days
   }
 
+  days = Math.trunc(days)
+
   if (weekend === undefined) {
     weekend = WEEKEND_TYPES[1]
+  } else if (typeof weekend === 'string' && /^[01]{7}$/.test(weekend) && weekend !== '1111111') {
+    // Weekend strings start on Monday; 1 marks a non-workday.
+    weekend = [1, 2, 3, 4, 5, 6, 0].filter((_, i) => weekend.charAt(i) === '1')
   } else {
     weekend = WEEKEND_TYPES[weekend]
   }
@@ -778,7 +803,7 @@ WORKDAY.INTL = (start_date, days, weekend, holidays) => {
 
     const day = start_date.getDay()
 
-    if (day === weekend[0] || day === weekend[1]) {
+    if (weekend.includes(day)) {
       continue
     }
 
