@@ -705,4 +705,53 @@ describe('Financial', () => {
     expect(financial.XNPV(0.09, values, dates)).to.approximately(2086.6718943024616, 1e-1)
     expect(financial.XNPV('invalid', values, dates)).to.equal(error.value)
   })
+
+  describe('regressions', () => {
+    it('IRR returns #NUM! when no rate solves the cash flows', () => {
+      expect(financial.IRR([-1, 1, -1])).to.equal(error.num)
+    })
+
+    it('PPMT returns an error for a nonnumeric period', () => {
+      expect(financial.PPMT(0.1, 'invalid', 2, 100)).to.equal(error.value)
+    })
+
+    it('ACCRINT uses a par value of 1000 when par is omitted', () => {
+      expect(
+        financial.ACCRINT(new Date(2008, 2, 1), new Date(2008, 7, 31), new Date(2008, 4, 1), 0.1, undefined, 2, 0)
+      ).to.approximately(16.666666666666668, 1e-9)
+    })
+
+    it('MIRR returns #DIV/0! without both positive and negative cash flows', () => {
+      expect(financial.MIRR([1, 2, 3], 0.1, 0.1)).to.equal(error.div0)
+      expect(financial.MIRR([-1, -2, -3], 0.1, 0.1)).to.equal(error.div0)
+    })
+
+    it('MIRR returns an error found among the cash flows', () => {
+      expect(financial.MIRR([-100, error.div0, 200], 0.1, 0.1)).to.equal(error.div0)
+    })
+
+    it('MIRR keeps each cash flow in its period', () => {
+      expect(financial.MIRR([-100, 50, -10, 80], 0.1, 0.12)).to.approximately(
+        Math.pow((50 * 1.12 ** 2 + 80) / (100 + 10 / 1.1 ** 2), 1 / 3) - 1,
+        1e-9
+      )
+      expect(financial.MIRR([-100, -10, 50, 80], 0.1, 0.12)).to.approximately(
+        Math.pow((50 * 1.12 + 80) / (100 + 10 / 1.1), 1 / 3) - 1,
+        1e-9
+      )
+    })
+
+    it('IRR, MIRR and NPV ignore text, logical values and empty entries in arrays', () => {
+      expect(financial.NPV(0.1, [100, true, 'x', null, 200])).to.approximately(100 / 1.1 + 200 / 1.21, 1e-9)
+      expect(financial.IRR([-100, true, 'x', null, 60, 60])).to.approximately(financial.IRR([-100, 60, 60]), 1e-9)
+      expect(financial.MIRR([-100, true, 'x', null, 60, 60], 0.1, 0.1)).to.approximately(
+        financial.MIRR([-100, 60, 60], 0.1, 0.1),
+        1e-9
+      )
+    })
+
+    it('TBILLYIELD returns #NUM! when settlement equals maturity', () => {
+      expect(financial.TBILLYIELD(new Date(2008, 2, 31), new Date(2008, 2, 31), 98.45)).to.equal(error.num)
+    })
+  })
 })
