@@ -358,6 +358,12 @@ export function NUMBERVALUE(text, decimal_separator, group_separator) {
   decimal_separator = typeof decimal_separator === 'undefined' ? '.' : decimal_separator
   group_separator = typeof group_separator === 'undefined' ? ',' : group_separator
 
+  // A group separator after the decimal separator is invalid
+  const decimalIndex = text.indexOf(decimal_separator)
+  if (decimal_separator && group_separator && decimalIndex > -1 && text.indexOf(group_separator, decimalIndex) > -1) {
+    return error.value
+  }
+
   return Number(text.split(group_separator).join('').replace(decimal_separator, '.'))
 }
 
@@ -628,6 +634,8 @@ export function TEXTJOIN(delimiter, ignore_empty, ...args) {
 
   let flatArgs = utils.flatten(args)
   let textToJoin = ignore_empty ? flatArgs.filter((text) => utils.isDefined(text) && text !== '') : flatArgs
+  // Logical values join as TRUE and FALSE
+  textToJoin = textToJoin.map((text) => (typeof text === 'boolean' ? (text ? 'TRUE' : 'FALSE') : text))
 
   if (Array.isArray(delimiter)) {
     delimiter = utils.flatten(delimiter)
@@ -691,6 +699,11 @@ export function UNICHAR(number) {
     return error.value
   }
 
+  // A surrogate code point on its own is not a character
+  if (number >= 0xd800 && number <= 0xdfff) {
+    return error.na
+  }
+
   return String.fromCodePoint(number)
 }
 
@@ -710,7 +723,8 @@ export function UNICODE(text) {
   text = text || ''
   const result = text.codePointAt(0)
 
-  return result === undefined ? error.value : result
+  // An unpaired surrogate is not a character
+  return result === undefined || (result >= 0xd800 && result <= 0xdfff) ? error.value : result
 }
 
 /**

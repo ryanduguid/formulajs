@@ -496,11 +496,14 @@ describe('Text', () => {
     it('TEXTJOIN keeps zero when ignoring empty values', () => {
       expect(text.TEXTJOIN(',', true, 0, '', 'a')).to.equal('0,a')
       expect(text.TEXTJOIN(',', true, [0, null, 'a', undefined])).to.equal('0,a')
+      expect(text.TEXTJOIN(',', true, 0, false, 1)).to.equal('0,FALSE,1')
+      expect(text.TEXTJOIN(',', false, true)).to.equal('TRUE')
     })
 
     it('NUMBERVALUE removes every group separator', () => {
       expect(text.NUMBERVALUE('1,234,567', '.', ',')).to.equal(1234567)
       expect(text.NUMBERVALUE('1.234.567,5', ',', '.')).to.equal(1234567.5)
+      expect(text.NUMBERVALUE('1.2,3,4', '.', ',')).to.equal(error.value)
     })
 
     it('UNICHAR and UNICODE handle supplementary code points', () => {
@@ -509,6 +512,10 @@ describe('Text', () => {
       expect(text.UNICHAR(66)).to.equal('B')
       expect(text.UNICODE('B')).to.equal(66)
       expect(text.UNICHAR(0)).to.equal(error.value)
+      expect(text.UNICHAR(0xd800)).to.equal(error.na)
+      expect(text.UNICHAR(0xdfff)).to.equal(error.na)
+      expect(text.UNICHAR(0x10000)).to.equal('\u{10000}')
+      expect(text.UNICODE('\ud800')).to.equal(error.value)
     })
 
     it('TEXT accepts optional decimal placeholders', () => {
