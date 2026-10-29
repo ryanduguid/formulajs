@@ -586,10 +586,12 @@ export function NOW() {
     return now
   }
 
-  // dateToSerial returns whole days, so add the elapsed fraction of today separately.
+  // dateToSerial returns whole days, so add the clock time as a fraction of a day.
+  // Using the clock fields keeps the fraction right on daylight-saving change days.
   const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const seconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds() + now.getMilliseconds() / 1000
 
-  return dateToSerial(midnight) + (now - midnight) / 86400000
+  return dateToSerial(midnight) + seconds / 86400
 }
 
 /**
