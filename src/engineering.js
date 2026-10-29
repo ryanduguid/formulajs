@@ -244,7 +244,21 @@ export function BITAND(number1, number2) {
   }
 
   // Return bitwise AND of two numbers
-  return number1 & number2
+  return bitwise(number1, number2, (a, b) => a & b)
+}
+
+// Apply a 32-bit JavaScript bitwise operator to each 24-bit half of operands below 2^48.
+function bitwise(number1, number2, operator) {
+  const half = 16777216
+
+  return (
+    operator(Math.floor(number1 / half), Math.floor(number2 / half)) * half + operator(number1 % half, number2 % half)
+  )
+}
+
+// Shift left for positive amounts and right for negative ones without JavaScript's 32-bit shift limits.
+function shiftBits(number, shift_amount) {
+  return shift_amount >= 0 ? number * Math.pow(2, shift_amount) : Math.floor(number / Math.pow(2, -shift_amount))
 }
 
 /**
@@ -285,7 +299,7 @@ export function BITLSHIFT(number, shift_amount) {
   }
 
   // Return number shifted by shift bits to the left or to the right if shift is negative
-  return shift_amount >= 0 ? number << shift_amount : number >> -shift_amount
+  return shiftBits(number, shift_amount)
 }
 
 /**
@@ -321,7 +335,7 @@ export function BITOR(number1, number2) {
   }
 
   // Return bitwise OR of two numbers
-  return number1 | number2
+  return bitwise(number1, number2, (a, b) => a | b)
 }
 
 /**
@@ -362,7 +376,7 @@ export function BITRSHIFT(number, shift_amount) {
   }
 
   // Return number shifted by shift bits to the right or to the left if shift is negative
-  return shift_amount >= 0 ? number >> shift_amount : number << -shift_amount
+  return shiftBits(number, -shift_amount)
 }
 
 /**
@@ -398,7 +412,7 @@ export function BITXOR(number1, number2) {
   }
 
   // Return bitwise XOR of two numbers
-  return number1 ^ number2
+  return bitwise(number1, number2, (a, b) => a ^ b)
 }
 
 /**
@@ -415,8 +429,10 @@ export function COMPLEX(real_num, i_num, suffix) {
   real_num = utils.parseNumber(real_num)
   i_num = utils.parseNumber(i_num)
 
-  if (utils.anyIsError(real_num, i_num)) {
-    return real_num
+  const anyError = utils.anyError(real_num, i_num)
+
+  if (anyError) {
+    return anyError
   }
 
   // Set suffix
@@ -471,7 +487,7 @@ export function CONVERT(number, from_unit, to_unit) {
     ['ampere per meter', 'A/m', null, 'magnetic_field_intensity', true, false, 1],
     ['ångström', 'Å', ['ang'], 'length', false, true, 1e-10],
     ['are', 'ar', null, 'area', false, true, 100],
-    ['astronomical unit', 'ua', null, 'length', false, false, 1.49597870691667e-11],
+    ['astronomical unit', 'ua', null, 'length', false, false, 1.49597870691667e11],
     ['bar', 'bar', null, 'pressure', false, false, 100000],
     ['barn', 'b', null, 'area', false, false, 1e-28],
     ['becquerel', 'Bq', null, 'radioactivity', true, false, 1],
@@ -927,17 +943,15 @@ export function DELTA(number1, number2) {
  * @returns
  */
 export function ERF(lower_limit, upper_limit) {
-  // Set number2 to zero if undefined
-  upper_limit = upper_limit === undefined ? 0 : upper_limit
-
   lower_limit = utils.parseNumber(lower_limit)
-  upper_limit = utils.parseNumber(upper_limit)
+  upper_limit = upper_limit === undefined ? undefined : utils.parseNumber(upper_limit)
 
   if (utils.anyIsError(lower_limit, upper_limit)) {
     return error.value
   }
 
-  return jStat.erf(lower_limit)
+  // Integrate from zero to lower_limit when upper_limit is omitted
+  return upper_limit === undefined ? jStat.erf(lower_limit) : jStat.erf(upper_limit) - jStat.erf(lower_limit)
 }
 
 /**
@@ -1271,7 +1285,7 @@ export function IMCONJUGATE(inumber) {
   }
 
   // Lookup imaginary unit
-  let unit = inumber.substring(inumber.length - 1)
+  let unit = String(inumber).slice(-1)
   unit = unit === 'i' || unit === 'j' ? unit : 'i'
 
   // Return conjugate of complex number
@@ -1296,7 +1310,7 @@ export function IMCOS(inumber) {
   }
 
   // Lookup imaginary unit
-  let unit = inumber.substring(inumber.length - 1)
+  let unit = String(inumber).slice(-1)
   unit = unit === 'i' || unit === 'j' ? unit : 'i'
 
   // Return cosine of complex number
@@ -1325,7 +1339,7 @@ export function IMCOSH(inumber) {
   }
 
   // Lookup imaginary unit
-  let unit = inumber.substring(inumber.length - 1)
+  let unit = String(inumber).slice(-1)
   unit = unit === 'i' || unit === 'j' ? unit : 'i'
 
   // Return hyperbolic cosine of complex number
@@ -1378,8 +1392,8 @@ export function IMDIV(inumber1, inumber2) {
   }
 
   // Lookup imaginary unit
-  const unit1 = inumber1.substring(inumber1.length - 1)
-  const unit2 = inumber2.substring(inumber2.length - 1)
+  const unit1 = String(inumber1).slice(-1)
+  const unit2 = String(inumber2).slice(-1)
   let unit = 'i'
 
   if (unit1 === 'j') {
@@ -1416,7 +1430,7 @@ export function IMEXP(inumber) {
   }
 
   // Lookup imaginary unit
-  let unit = inumber.substring(inumber.length - 1)
+  let unit = String(inumber).slice(-1)
   unit = unit === 'i' || unit === 'j' ? unit : 'i'
 
   // Return exponential of complex number
@@ -1442,11 +1456,11 @@ export function IMLN(inumber) {
   }
 
   // Lookup imaginary unit
-  let unit = inumber.substring(inumber.length - 1)
+  let unit = String(inumber).slice(-1)
   unit = unit === 'i' || unit === 'j' ? unit : 'i'
 
   // Return exponential of complex number
-  return COMPLEX(Math.log(Math.sqrt(x * x + y * y)), Math.atan(y / x), unit)
+  return COMPLEX(Math.log(Math.sqrt(x * x + y * y)), Math.atan2(y, x), unit)
 }
 
 /**
@@ -1467,11 +1481,11 @@ export function IMLOG10(inumber) {
   }
 
   // Lookup imaginary unit
-  let unit = inumber.substring(inumber.length - 1)
+  let unit = String(inumber).slice(-1)
   unit = unit === 'i' || unit === 'j' ? unit : 'i'
 
   // Return exponential of complex number
-  return COMPLEX(Math.log(Math.sqrt(x * x + y * y)) / Math.log(10), Math.atan(y / x) / Math.log(10), unit)
+  return COMPLEX(Math.log(Math.sqrt(x * x + y * y)) / Math.log(10), Math.atan2(y, x) / Math.log(10), unit)
 }
 
 /**
@@ -1492,11 +1506,11 @@ export function IMLOG2(inumber) {
   }
 
   // Lookup imaginary unit
-  let unit = inumber.substring(inumber.length - 1)
+  let unit = String(inumber).slice(-1)
   unit = unit === 'i' || unit === 'j' ? unit : 'i'
 
   // Return exponential of complex number
-  return COMPLEX(Math.log(Math.sqrt(x * x + y * y)) / Math.log(2), Math.atan(y / x) / Math.log(2), unit)
+  return COMPLEX(Math.log(Math.sqrt(x * x + y * y)) / Math.log(2), Math.atan2(y, x) / Math.log(2), unit)
 }
 
 /**
@@ -1518,7 +1532,7 @@ export function IMPOWER(inumber, number) {
   }
 
   // Lookup imaginary unit
-  let unit = inumber.substring(inumber.length - 1)
+  let unit = String(inumber).slice(-1)
   unit = unit === 'i' || unit === 'j' ? unit : 'i'
 
   // Calculate power of modulus
@@ -1699,7 +1713,7 @@ export function IMSIN(inumber) {
   }
 
   // Lookup imaginary unit
-  let unit = inumber.substring(inumber.length - 1)
+  let unit = String(inumber).slice(-1)
   unit = unit === 'i' || unit === 'j' ? unit : 'i'
 
   // Return sine of complex number
@@ -1728,7 +1742,7 @@ export function IMSINH(inumber) {
   }
 
   // Lookup imaginary unit
-  let unit = inumber.substring(inumber.length - 1)
+  let unit = String(inumber).slice(-1)
   unit = unit === 'i' || unit === 'j' ? unit : 'i'
 
   // Return hyperbolic sine of complex number
@@ -1757,7 +1771,7 @@ export function IMSQRT(inumber) {
   }
 
   // Lookup imaginary unit
-  let unit = inumber.substring(inumber.length - 1)
+  let unit = String(inumber).slice(-1)
   unit = unit === 'i' || unit === 'j' ? unit : 'i'
 
   // Calculate power of modulus
@@ -1845,8 +1859,8 @@ export function IMSUB(inumber1, inumber2) {
   }
 
   // Lookup imaginary unit
-  const unit1 = inumber1.substring(inumber1.length - 1)
-  const unit2 = inumber2.substring(inumber2.length - 1)
+  const unit1 = String(inumber1).slice(-1)
+  const unit2 = String(inumber2).slice(-1)
   let unit = 'i'
 
   if (unit1 === 'j') {

@@ -467,4 +467,45 @@ describe('Engineering', () => {
     expect(engineering.OCT2HEX('1', 'a')).to.equal(error.value)
     expect(engineering.OCT2HEX('1', -1)).to.equal(error.num)
   })
+
+  describe('regressions', () => {
+    it('bit functions keep operands and shifts above 32 bits', () => {
+      expect(engineering.BITAND(2 ** 40 + 1, 2 ** 40 + 3)).to.equal(2 ** 40 + 1)
+      expect(engineering.BITOR(2 ** 40, 1)).to.equal(2 ** 40 + 1)
+      expect(engineering.BITXOR(2 ** 40 + 3, 1)).to.equal(2 ** 40 + 2)
+      expect(engineering.BITLSHIFT(1, 40)).to.equal(2 ** 40)
+      expect(engineering.BITLSHIFT(1, 31)).to.equal(2 ** 31)
+      expect(engineering.BITLSHIFT(2 ** 40, -40)).to.equal(1)
+      expect(engineering.BITRSHIFT(2 ** 40, 40)).to.equal(1)
+      expect(engineering.BITRSHIFT(2 ** 33, 1)).to.equal(2 ** 32)
+      expect(engineering.BITRSHIFT(1, -40)).to.equal(2 ** 40)
+    })
+
+    it('COMPLEX returns an error for a nonnumeric imaginary coefficient', () => {
+      expect(engineering.COMPLEX(3, 'x')).to.equal(error.value)
+      expect(engineering.COMPLEX(3, error.div0)).to.equal(error.div0)
+    })
+
+    it('ERF integrates between the supplied limits', () => {
+      expect(engineering.ERF(0, 1)).to.approximately(0.8427007929497149, 1e-7)
+      expect(engineering.ERF(1, 2)).to.approximately(0.15262147206923782, 1e-7)
+    })
+
+    it('complex logarithms use the quadrant of the argument', () => {
+      expect(engineering.IMAGINARY(engineering.IMLN('-1+i'))).to.approximately(2.356194490192345, 1e-9)
+      expect(engineering.IMAGINARY(engineering.IMLN('-3-4i'))).to.approximately(-2.214297435588181, 1e-9)
+      expect(engineering.IMAGINARY(engineering.IMLOG10('-1+i'))).to.approximately(2.356194490192345 / Math.LN10, 1e-9)
+      expect(engineering.IMAGINARY(engineering.IMLOG2('-1+i'))).to.approximately(2.356194490192345 / Math.LN2, 1e-9)
+    })
+
+    it('complex functions accept the numeric zero returned by COMPLEX(0, 0)', () => {
+      expect(engineering.IMCOS(engineering.COMPLEX(0, 0))).to.equal('1')
+      expect(engineering.IMSIN(0)).to.equal(0)
+      expect(() => engineering.IMDIV(engineering.COMPLEX(0, 0), '1+i')).to.not.throw()
+    })
+
+    it('CONVERT uses the astronomical unit length', () => {
+      expect(engineering.CONVERT(1, 'ua', 'm')).to.approximately(149597870700, 10)
+    })
+  })
 })
