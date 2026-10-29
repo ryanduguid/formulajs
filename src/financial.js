@@ -1,7 +1,6 @@
 import * as error from './utils/error.js'
 import * as dateTime from './date-time.js'
 import * as utils from './utils/common.js'
-import { isDefined } from './utils/common.js'
 
 function validDate(d) {
   return d && d.getTime && !isNaN(d.getTime())
@@ -92,7 +91,7 @@ export function ACCRINT(issue, first_interest, settlement, rate, par, frequency,
   }
 
   // Set default values
-  par = par || 0
+  par = par || 1000
   basis = basis || 0
 
   // Compute accrued interest
@@ -694,6 +693,11 @@ export function IPMT(rate, per, nper, pv, fv, type) {
   return interest * rate
 }
 
+// Array arguments of IRR, MIRR and NPV ignore text, logical values and empty entries; errors still propagate.
+function cashFlowValues(values) {
+  return utils.flatten(values).filter((value) => typeof value === 'number' || value instanceof Error)
+}
+
 /**
  * Returns the internal rate of return for a series of cash flows.
  *
@@ -713,9 +717,7 @@ export function IRR(values, guess) {
   // Credits: algorithm inspired by Apache OpenOffice
   guess = typeof guess === 'number' ? guess : typeof guess === 'undefined' ? 0.1 : utils.parseNumber(guess)
 
-  values = utils.flatten(values).filter(isDefined)
-
-  values = utils.parseNumberArray(values)
+  values = utils.parseNumberArray(cashFlowValues(values))
 
   if (utils.anyIsError(values, guess)) {
     return error.value
@@ -843,7 +845,7 @@ export function IRR(values, guess) {
       while (cachedNpv(b) > 0 && b < 1000) {
         b = b * 2 + 0.1
       }
-      if (b >= 1000) return rate // Couldn't find sign change
+      if (b >= 1000) return error.num // Couldn't find sign change
     } else {
       b = rate
       // Find a where npv(a) > 0
@@ -851,7 +853,7 @@ export function IRR(values, guess) {
       while (cachedNpv(a) < 0 && a > -0.99999999) {
         a = Math.max(-0.99999999, a - 0.1)
       }
-      if (a <= -0.99999999) return rate // Couldn't find sign change
+      if (a <= -0.99999999) return error.num // Couldn't find sign change
     }
 
     // Perform bisection
@@ -917,7 +919,7 @@ export function ISPMT(rate, per, nper, pv) {
  * @returns
  */
 export function MIRR(values, finance_rate, reinvest_rate) {
-  values = utils.parseNumberArray(utils.flatten(values))
+  values = utils.parseNumberArray(cashFlowValues(values))
   finance_rate = utils.parseNumber(finance_rate)
   reinvest_rate = utils.parseNumber(reinvest_rate)
 
@@ -928,20 +930,21 @@ export function MIRR(values, finance_rate, reinvest_rate) {
   // Initialize number of values
   const n = values.length
 
-  // Lookup payments (negative values) and incomes (positive values)
+  // Lookup payments (negative values) and incomes (positive values), keeping each in its period
   const payments = []
   const incomes = []
 
   for (let i = 0; i < n; i++) {
-    if (values[i] < 0) {
-      payments.push(values[i])
-    } else {
-      incomes.push(values[i])
-    }
+    payments.push(values[i] < 0 ? values[i] : 0)
+    incomes.push(values[i] > 0 ? values[i] : 0)
+  }
+
+  if (!payments.some((value) => value < 0) || !incomes.some((value) => value > 0)) {
+    return error.div0
   }
 
   // Return modified internal rate of return
-  const num = -NPV(reinvest_rate, incomes) * Math.pow(1 + reinvest_rate, n - 1)
+  const num = -NPV(reinvest_rate, incomes) * Math.pow(1 + reinvest_rate, n)
   const den = NPV(finance_rate, payments) * (1 + finance_rate)
 
   return Math.pow(num / den, 1 / (n - 1)) - 1
@@ -1026,7 +1029,11 @@ export function NPER(rate, pmt, pv, fv, type) {
  * @returns
  */
 export function NPV() {
-  const args = utils.parseNumberArray(utils.flatten(arguments))
+  const args = utils.parseNumberArray(
+    utils.flatten(
+      Array.prototype.map.call(arguments, (arg, i) => (i > 0 && Array.isArray(arg) ? cashFlowValues(arg) : arg))
+    )
+  )
 
   if (args instanceof Error) {
     return args
@@ -1137,12 +1144,13 @@ export function PPMT(rate, per, nper, pv, fv, type) {
   type = type || 0
 
   rate = utils.parseNumber(rate)
+  per = utils.parseNumber(per)
   nper = utils.parseNumber(nper)
   pv = utils.parseNumber(pv)
   fv = utils.parseNumber(fv)
   type = utils.parseNumber(type)
 
-  if (utils.anyIsError(rate, nper, pv, fv, type)) {
+  if (utils.anyIsError(rate, per, nper, pv, fv, type)) {
     return error.value
   }
 
@@ -1509,8 +1517,8 @@ export function TBILLYIELD(settlement, maturity, pr) {
     return error.num
   }
 
-  // Return error if settlement is greater than maturity
-  if (settlement > maturity) {
+  // Return error if settlement is greater than or equal to maturity
+  if (settlement >= maturity) {
     return error.num
   }
 
