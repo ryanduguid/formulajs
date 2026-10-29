@@ -479,6 +479,8 @@ describe('Engineering', () => {
       expect(engineering.BITRSHIFT(2 ** 40, 40)).to.equal(1)
       expect(engineering.BITRSHIFT(2 ** 33, 1)).to.equal(2 ** 32)
       expect(engineering.BITRSHIFT(1, -40)).to.equal(2 ** 40)
+      expect(engineering.BITLSHIFT(1, 1.5)).to.equal(2)
+      expect(engineering.BITRSHIFT(8, 1.5)).to.equal(4)
     })
 
     it('COMPLEX returns an error for a nonnumeric imaginary coefficient', () => {

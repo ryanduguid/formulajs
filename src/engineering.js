@@ -257,7 +257,10 @@ function bitwise(number1, number2, operator) {
 }
 
 // Shift left for positive amounts and right for negative ones without JavaScript's 32-bit shift limits.
+// Like Excel, a fractional shift amount is truncated.
 function shiftBits(number, shift_amount) {
+  shift_amount = Math.trunc(shift_amount)
+
   return shift_amount >= 0 ? number * Math.pow(2, shift_amount) : Math.floor(number / Math.pow(2, -shift_amount))
 }
 
