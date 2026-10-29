@@ -317,4 +317,47 @@ describe('Date & Time', () => {
     expect(dateTime.YEARFRAC('a', '1/2/1900')).to.equal(error.value)
     expect(dateTime.YEARFRAC('1/1/1900', 'a')).to.equal(error.value)
   })
+
+  describe('regressions', () => {
+    it('TIME normalises hours beyond 23 into a fraction of a day', () => {
+      expect(dateTime.TIME(27, 0, 0)).to.equal(0.125)
+      expect(dateTime.TIME(0, 750, 0)).to.approximately(0.520833, 1e-6)
+    })
+
+    it('WORKDAY.INTL truncates fractional day offsets', () => {
+      expect(dateTime.WORKDAY.INTL(new Date(2024, 0, 1), 1.9)).to.deep.equal(new Date(2024, 0, 2))
+      expect(dateTime.WORKDAY.INTL(new Date(2024, 0, 3), -1.9)).to.deep.equal(new Date(2024, 0, 2))
+    })
+
+    it('WORKDAY.INTL accepts seven-character weekend strings', () => {
+      expect(dateTime.WORKDAY.INTL(new Date(2024, 0, 5), 1, '0000011')).to.deep.equal(new Date(2024, 0, 8))
+      expect(dateTime.WORKDAY.INTL(new Date(2024, 0, 4), 1, '0000111')).to.deep.equal(new Date(2024, 0, 8))
+      expect(dateTime.WORKDAY.INTL(new Date(2024, 0, 4), 1, '1111111')).to.equal(error.value)
+    })
+
+    it('DATEDIF YD returns the day difference for dates in the same month', () => {
+      expect(dateTime.DATEDIF(new Date(2024, 2, 5), new Date(2024, 2, 5), 'YD')).to.equal(0)
+      expect(dateTime.DATEDIF(new Date(2024, 2, 5), new Date(2024, 2, 10), 'YD')).to.equal(5)
+      expect(dateTime.DATEDIF(new Date(2023, 2, 5), new Date(2025, 2, 10), 'YD')).to.equal(5)
+    })
+
+    it('DATE keeps validation errors in serial mode', () => {
+      useSerial()
+      expect(dateTime.DATE('a', 1, 1)).to.equal(error.value)
+      expect(dateTime.DATE(-1, 1, 1)).to.equal(error.num)
+    })
+
+    it('NETWORKDAYS.INTL counts reversed intervals as negative workdays', () => {
+      expect(dateTime.NETWORKDAYS.INTL(new Date(2024, 0, 2), new Date(2024, 0, 1))).to.equal(-2)
+      expect(dateTime.NETWORKDAYS.INTL(new Date(2024, 0, 15), new Date(2024, 0, 1))).to.equal(-11)
+    })
+
+    it('NOW keeps the time of day in serial mode', () => {
+      useSerial()
+      const now = new Date()
+      const serial = dateTime.NOW()
+      const fraction = (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400
+      expect(serial - Math.floor(serial)).to.approximately(fraction, 2 / 86400)
+    })
+  })
 })
